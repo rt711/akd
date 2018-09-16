@@ -1,0 +1,21 @@
+---
+
+- name: Wait until the string "NotReady" is not present
+  command: kubectl get nodes
+  register: cluster_status
+  retries: 10
+  until: "'NotReady' not in cluster_status.stdout"
+  changed_when: false
+
+# Get node status from master
+- name: Get node status
+  command: kubectl get nodes
+  register: node_list   
+  delegate_to: a-k8s-01
+  changed_when: false
+  tags: cluster_status
+
+# List cluster nodes
+- name: Show cluster nodes status
+  debug: msg="{{ node_list.stdout_lines }}"
+  tags: cluster_status

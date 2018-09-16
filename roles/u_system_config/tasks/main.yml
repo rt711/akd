@@ -1,0 +1,124 @@
+---
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: swap
+    fstype: swap
+    state: absent
+  become: yes
+
+- name: Disable swap
+  command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+  become: yes
+
+- name: get the username running the deployment
+  become: false
+  local_action: command /usr/bin/whoami
+  register: username_on_the_host
+  changed_when: false
+  tags: deploy_keys
+
+- name: add authorized_key from local user's directory
+  authorized_key: user={{ ansible_user }} key="{{ lookup('file', '/home/{{ item }}/.ssh/k8s-id_rsa.pub') }}"
+  with_items: "{{ username_on_the_host.stdout_lines }}"
+  tags: deploy_keys
+
+- name: Generate /etc/resolv.conf file with {{ NAMESERVER }}
+  template:
+    src: templates/resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: 0777
+  become: yes
+
+- name: Generate /etc/hosts file
+  template:
+    src: templates/hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: 0600
+  become: yes
+
+- name: "Set desired timezone: {{ TZLocation }}/{{ TZCity }}"
+  timezone:
+    name: "{{ TZLocation }}/{{ TZCity }}"
+  async: 0
+  
+- name: "Install NTP rsync and Docker"
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - chrony
+    - rsync
+    - docker.io
+  become: yes
+
+- name: enable docker and make it running
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+#- name: "etcd systemd file structure"
+#  file:
+#    path: /etc/systemd/system/kubelet.service.d
+#    state: directory
+
+#- name: "Template etcd in kubelet.service.d"
+#  template:
+#    src: templates/20-etcd-service-manager.conf.j2
+#    dest: /etc/systemd/system/kubelet.service.d/20-etcd-service-manager.conf    
+#    owner: root
+#    group: root
+#    mode: 0755
+#  register: etcd_service_manager
+
+#- name: Reload systemd when etcd systemd config changed
+#  systemd:
+#    daemon_reload: yes
+#  when: etcd_service_manager.changed
+
+#- name: Restart kubelet when etcd systemd config changed
+#  systemd:
+#    name: kubelet
+#    state: restarted
+#  when: etcd_service_manager.changed
+
+- name: Display all variables/facts known for a host
+  debug:
+    var: k8s[node]
+    verbosity: 4
+
+- name: add k8s google repository GPG key                                                                                     
+  apt_key:  
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg 
+    state: present
+  become: yes
+
+- name: add k8s repository
+  apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes
+  become: yes
+
+- name: install kubelet, kubeadm, kubectl packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - kubelet
+    - kubeadm
+    - kubectl
+  become: yes  
+
+- name: enable service kubelet
+  systemd:
+    name: kubelet
+    enabled: yes
+    masked: no
+  become: yes

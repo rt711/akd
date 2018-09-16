@@ -1,0 +1,54 @@
+---
+
+# Chekck if kubernetes worker is a cluster member, search for configuration file
+- name: Check if kubernetes worker is configured
+  stat:
+    path: /etc/kubernetes/admin.conf  
+  register: master_configuration
+  become: yes
+
+# make shure to create kubernetes cluster with podnetworks flag
+- name: Create network with "{{ CIDR }}"
+  ###command: cat /home/k8s/kj.txt 
+  command: kubeadm init --pod-network-cidr="{{ CIDR }}"
+  register: join_token
+  #run_once: true
+  become: yes
+  when: master_configuration.stat.exists == False
+
+#- set_fact: kubernetes_join_token="{{ join_token.stdout_lines[-1] | replace('  ', '') }}"
+#
+#- debug: msg="{{ kubernetes_join_token }}"
+
+
+#mkdir -p $HOME/.kube
+#sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+#sudo chown $(id -u):$(id -g) $HOME/.kube/config
+- name: Create kube directory for configuration files for {{ ansible_user }}
+  file:
+    path: /home/{{ ansible_user }}/.kube
+    state: directory
+    mode: 0755  
+  when: master_configuration.stat.exists == False
+
+# Copy configuration from /etc/kubernetes to $HOME/.kube/
+- name: Copy config from /etc/kubernetes/admin.conf to {{ ansible_user }}/.kube
+  copy:
+    remote_src: True
+    src: /etc/kubernetes/admin.conf
+    dest: /home/{{ ansible_user }}/.kube/config
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0600
+  become: yes
+  when: master_configuration.stat.exists == False
+
+# Deploy Flannel network, this will enable CoreDNS
+- name: Deploy Flannel
+  command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  register: kubernetes_flannel_deployment
+  when: master_configuration.stat.exists == False
+
+# Show Flannel deployment outcome  
+- debug: msg="{{ kubernetes_flannel_deployment.stdout_lines }}"
+  when: master_configuration.stat.exists == False

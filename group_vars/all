@@ -1,0 +1,5 @@
+---
+TZLocation: Europe
+TZCity: Dublin
+NAMESERVER: "8.8.8.8"
+CIDR: "10.244.0.0/16"

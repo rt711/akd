@@ -1,0 +1,6 @@
+---
+- name: Restore config
+  hosts:
+    - k8s
+  roles:
+    - u_reset_cluster

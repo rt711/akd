@@ -1,0 +1,5 @@
+---
+# Reset kubernetes cluster nodes configuration
+- name: Reset cluster configuration
+  command: kubeadm reset -f
+  become: yes

@@ -1,0 +1,35 @@
+---
+
+# Chekck if kubernetes worker is a cluster member, search for bootsrap configuration file
+- name: Check if kubernetes worker is configured
+  stat:
+    path: /etc/kubernetes/bootstrap-kubelet.conf  
+  register: configuration
+  become: yes
+
+# This following task is delegated to kubernetes master node to request join token
+- name: Request join token from k8s_master
+  command: kubeadm token create --ttl 10m --print-join-command
+  #command: cat /home/k8s/xy.txt
+  register: join_token_2   
+  delegate_to: a-k8s-01
+  become: yes
+  when: configuration.stat.exists == False
+
+# Registering and formating join token
+- set_fact: kubernetes_join_token_2="{{ join_token_2.stdout_lines[-1] | replace('  ', '') }}"
+  when: configuration.stat.exists == False
+
+# Printing out join token
+- name: This is the final join token variable and comes from k8s_master
+  debug: msg="{{ kubernetes_join_token_2 }}"
+  when: configuration.stat.exists == False
+  become: yes
+
+# Join cluster as admin
+- name: Join cluster
+  command: "{{ kubernetes_join_token_2 }}"
+  when: configuration.stat.exists == False
+  become: yes
+
+

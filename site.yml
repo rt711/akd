@@ -1,0 +1,24 @@
+---
+- name: Deploy k8s
+  hosts:
+    - k8s
+  roles:
+    - u_system_config
+  
+- name: Setup networking wih Flannel
+  hosts:
+    - k8s_master
+  roles:
+    - u_setup_networking
+
+- name: Join worker nodes
+  hosts:
+    - k8s_workers
+  roles:
+    - u_initialize_workers
+
+- name: Get nodes from cluster
+  hosts:
+    - k8s_master
+  roles:
+    - u_verify_cluster    
