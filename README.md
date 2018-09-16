@@ -1,7 +1,10 @@
 # akd
 ## Kubernetes deployment with Ansible
 
-Currently Ubuntu is supported.
+Currently Ubuntu 18.04 LTS is supported.
+
+works with Docker docker.io/bionic,now 17.12.1-0ubuntu1 amd64
+Flanel network is supported
 
 # Prerequisities:
   - generate ssh key for managing the nodes, make sure to name them as specified in inventory/hosts
